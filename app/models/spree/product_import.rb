@@ -184,7 +184,9 @@ module Spree
       ).flatten.map(&:to_s)
 
       params_hash.each do |field, value|
-        if product.respond_to?("#{field}=")
+        if (field.to_s.eql?('price'))
+          product.price=convertToPrice(value)
+        elsif (product.respond_to?("#{field}="))
           product.send("#{field}=", value)
         elsif not special_fields.include?(field.to_s) and property = Property.where("lower(name) = ?", field).first
           properties_hash[property] = value
@@ -318,7 +320,11 @@ module Spree
       log("VARIANT:: #{variant.inspect}  /// #{options.inspect } /// #{options[:with][field]} /// #{field}",:debug)
 
       options[:with].each do |field, value|
-        variant.send("#{field}=", value) if variant.respond_to?("#{field}=")
+        if (field.to_s.eql?('price'))
+          variant.price=convertToPrice(value)
+        else
+          variant.send("#{field}=", value) if variant.respond_to?("#{field}=")
+        end
         #We only applu OptionTypes if value is not null.
         if (value)
           applicable_option_type = OptionType.where(
@@ -548,7 +554,24 @@ module Spree
         end
       end
       translation.save
-
+    end
+    #Special process of prices because of locales and different decimal separator characters.
+    #We want to get a format with dot as decimal separator and without thousand separator
+    def convertToPrice(priceStr)
+      punt=priceStr.index('.')
+      coma=priceStr.index(',')
+      #If the string contains dot and commas, we process it. If not, we replace comma by dot.
+      if (coma!=nil && punt!=nil)
+        #If dot is before comma, the format is x.xxx,xx so we delete the dot.
+        #If not, the format is x,xxx.xx so we delete the comma.
+        if (punt<coma)
+          priceStr=priceStr.gsub('.', '')
+        else
+          priceStr=priceStr.gsub(',', '')
+        end
+      end
+      #We replace comma by dot.
+      return priceStr.gsub(',', '.').to_f
     end
   end
 end
