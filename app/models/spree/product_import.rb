@@ -128,7 +128,7 @@ module Spree
           product_information[:available_on] = Date.today - 1.day if product_information[:available_on].nil?
 
           #Manually set retail_only if it is not already set
-          product_information[:retail_only] = 0 if product_information[:retail_only].nil?
+          #product_information[:retail_only] = 0 if product_information[:retail_only].nil?
 
           if (product_information[:shipping_category_id].nil?)
             sc = Spree::ShippingCategory.first
@@ -175,6 +175,9 @@ module Spree
       product = Product.new
       properties_hash = Hash.new
 
+			#Manually set retail_only if it is not already set
+			params_hash[:retail_only] = 0 if params_hash[:retail_only].nil?
+					
       # Array of special fields. Prevent adding them to properties.
       special_fields  = ProductImport.settings.values_at(
           :image_fields,
@@ -325,7 +328,7 @@ module Spree
         else
           variant.send("#{field}=", value) if variant.respond_to?("#{field}=")
         end
-        #We only applu OptionTypes if value is not null.
+        #We only apply OptionTypes if value is not null.
         if (value)
           applicable_option_type = OptionType.where(
               "lower(presentation) = ? OR lower(name) = ?",
