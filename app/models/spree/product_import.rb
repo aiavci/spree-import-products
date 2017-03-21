@@ -127,9 +127,6 @@ module Spree
           #Manually set available_on if it is not already set
           product_information[:available_on] = Date.today - 1.day if product_information[:available_on].nil?
 
-          #Manually set retail_only if it is not already set
-          #product_information[:retail_only] = 0 if product_information[:retail_only].nil?
-
           if (product_information[:shipping_category_id].nil?)
             sc = Spree::ShippingCategory.first
             product_information[:shipping_category_id] = sc.id unless sc.nil?
@@ -204,6 +201,11 @@ module Spree
       log("UPATE PRODUCT:"+params_hash.inspect)
       properties_hash = Hash.new
 
+			#If exists retail_only key without value, we assign false, to avoid null values.
+			if (params_hash.key?(:retail_only) and params_hash[:retail_only].nil?) 
+				params_hash[:retail_only] = 0
+			end
+			
       # Array of special fields. Prevent adding them to properties.
       special_fields  = ProductImport.settings.values_at(
           :image_fields,
