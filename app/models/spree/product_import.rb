@@ -193,7 +193,7 @@ module Spree
         end
       end
 
-      save_product(product,params_hash,properties_hash)
+      save_product(product,params_hash,properties_hash,true)
     end
 
     def update_product(product,params_hash)
@@ -234,10 +234,10 @@ module Spree
         end
       end
 
-      save_product(product,params_hash,properties_hash)
+      save_product(product,params_hash,properties_hash,false)
     end
 
-    def save_product(product,params_hash,properties_hash)
+    def save_product(product,params_hash,properties_hash,create)
       log("SAVE PRODUCT:"+product.inspect)
 
       #We can't continue without a valid product here
@@ -275,7 +275,7 @@ module Spree
 
       #Associate our new product with any taxonomies that we need to worry about
       ProductImport.settings[:taxonomy_fields].each do |field|
-        associate_product_with_taxon(product, field.to_s, params_hash[field.to_sym])
+        associate_product_with_taxon(product, field.to_s, params_hash[field.to_sym],create)
       end
 
       #Finally, attach any images that have been specified
@@ -486,7 +486,7 @@ module Spree
     # a particular taxon to be picked out
     # 3. An item > item & item > item will work as above, but will associate multiple
     # taxons with that product. This form should also work with format 1.
-    def associate_product_with_taxon(product, taxonomy, taxon_hierarchy)
+    def associate_product_with_taxon(product, taxonomy, taxon_hierarchy,putInTop)
       return if product.nil? || taxonomy.nil? || taxon_hierarchy.nil?
 
       #Using find_or_create_by_name is more elegant, but our magical params code automatically downcases
@@ -509,6 +509,11 @@ module Spree
 
         #Spree only needs to know the most detailed taxonomy item
         product.taxons << last_taxon unless product.taxons.include?(last_taxon)
+      end
+      if (putInTop and SpreeSortProductsTaxon.present?)
+        if(SpreeSortProductsTaxon::Config.activated)
+          product.put_in_taxons_top(product.taxons)
+        end
       end
     end
     ### END TAXON HELPERS ###
