@@ -510,7 +510,7 @@ module Spree
         #Spree only needs to know the most detailed taxonomy item
         product.taxons << last_taxon unless product.taxons.include?(last_taxon)
       end
-      if (putInTop and SpreeSortProductsTaxon.present?)
+      if (putInTop and defined?(SpreeSortProductsTaxon))
         if(SpreeSortProductsTaxon::Config.activated)
           product.put_in_taxons_top(product.taxons)
         end
