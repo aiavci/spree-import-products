@@ -8,11 +8,10 @@ module SpreeImportProducts
   end
 
   module VERSION
-    MAJOR = 0
-    MINOR = 0
-    TINY  = 1
-    PRE   = 'alpha'.freeze
+    MAJOR = 3
+    MINOR = 2
+    TINY  = 0
 
-    STRING = [MAJOR, MINOR, TINY, PRE].compact.join('.')
+    STRING = [MAJOR, MINOR, TINY].compact.join('.')
   end
 end
