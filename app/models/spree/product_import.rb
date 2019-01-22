@@ -130,9 +130,6 @@ module Spree
           #Manually set available_on if it is not already set
           product_information[:available_on] = Date.today - 1.day if product_information[:available_on].nil?
 
-          #Manually set retail_only if it is not already set
-          product_information[:retail_only] = 0 if product_information[:retail_only].nil?
-
           if (product_information[:shipping_category_id].nil?)
             sc = Spree::ShippingCategory.first
             product_information[:shipping_category_id] = sc.id unless sc.nil?
@@ -178,6 +175,9 @@ module Spree
       product = Product.new
       properties_hash = Hash.new
 
+			#Manually set retail_only if it is not already set
+			params_hash[:retail_only] = 0 if params_hash[:retail_only].nil?
+					
       # Array of special fields. Prevent adding them to properties.
       special_fields  = ProductImport.settings.values_at(
           :image_fields,
@@ -187,14 +187,16 @@ module Spree
       ).flatten.map(&:to_s)
 
       params_hash.each do |field, value|
-        if product.respond_to?("#{field}=")
+        if (field.to_s.eql?('price'))
+          product.price=convertToPrice(value)
+        elsif (product.respond_to?("#{field}="))
           product.send("#{field}=", value)
         elsif not special_fields.include?(field.to_s) and property = Property.where("name = ?", field).first and value.present?
           properties_hash[property] = value
         end
       end
 
-      save_product(product,params_hash,properties_hash)
+      save_product(product,params_hash,properties_hash,true)
     end
 
     def update_product(product,params_hash)
@@ -202,6 +204,11 @@ module Spree
       log("UPATE PRODUCT:"+params_hash.inspect)
       properties_hash = Hash.new
 
+			#If exists retail_only key without value, we assign false, to avoid null values.
+			if (params_hash.key?(:retail_only) and params_hash[:retail_only].nil?) 
+				params_hash[:retail_only] = 0
+			end
+			
       # Array of special fields. Prevent adding them to properties.
       special_fields  = ProductImport.settings.values_at(
           :image_fields,
@@ -230,10 +237,10 @@ module Spree
         end
       end
 
-      save_product(product,params_hash,properties_hash)
+      save_product(product,params_hash,properties_hash,false)
     end
 
-    def save_product(product,params_hash,properties_hash)
+    def save_product(product,params_hash,properties_hash,create)
       log("SAVE PRODUCT:"+product.inspect)
 
       #We can't continue without a valid product here
@@ -270,7 +277,7 @@ module Spree
 
       #Associate our new product with any taxonomies that we need to worry about
       ProductImport.settings[:taxonomy_fields].each do |field|
-        associate_product_with_taxon(product, field.to_s, params_hash[field.to_sym])
+        associate_product_with_taxon(product, field.to_s, params_hash[field.to_sym],create)
       end
 
       #Finally, attach any images that have been specified
@@ -326,8 +333,12 @@ module Spree
       log("VARIANT:: #{variant.inspect}  /// #{options.inspect } /// #{options[:with][field]} /// #{field}",:debug)
 
       options[:with].each do |field, value|
-        variant.send("#{field}=", value) if variant.respond_to?("#{field}=")
-        #We only applu OptionTypes if value is not null.
+        if (field.to_s.eql?('price'))
+          variant.price=convertToPrice(value)
+        else
+          variant.send("#{field}=", value) if variant.respond_to?("#{field}=")
+        end
+        #We only apply OptionTypes if value is not null.
         if (value)
           applicable_option_type = OptionType.where(
               "presentation = ? OR name = ?",
@@ -367,6 +378,11 @@ module Spree
         log("StockItem: #{stock_item.inspect}",:debug)
         log("OnHand: #{options[:with][:on_hand]}",:debug)
         #We only update the stock if stock is not blank.
+				if (options[:with][:backorderable])
+				  if stock_item.respond_to?("backorderable=")
+						stock_item.send("backorderable=", options[:with][:backorderable])
+					end
+        end
         if (options[:with][:on_hand])
           stock_item.set_count_on_hand(options[:with][:on_hand])
         end
@@ -478,7 +494,7 @@ module Spree
     # a particular taxon to be picked out
     # 3. An item > item & item > item will work as above, but will associate multiple
     # taxons with that product. This form should also work with format 1.
-    def associate_product_with_taxon(product, taxonomy, taxon_hierarchy)
+    def associate_product_with_taxon(product, taxonomy, taxon_hierarchy,putInTop)
       return if product.nil? || taxonomy.nil? || taxon_hierarchy.nil?
 
       #Using find_or_create_by_name is more elegant, but our magical params code automatically downcases
@@ -501,6 +517,11 @@ module Spree
 
         #Spree only needs to know the most detailed taxonomy item
         product.taxons << last_taxon unless product.taxons.include?(last_taxon)
+      end
+      if (putInTop and defined?(SpreeSortProductsTaxon))
+        if(SpreeSortProductsTaxon::Config.activated)
+          product.put_in_taxons_top(product.taxons)
+        end
       end
     end
     ### END TAXON HELPERS ###
@@ -551,7 +572,24 @@ module Spree
         end
       end
       translation.save
-
+    end
+    #Special process of prices because of locales and different decimal separator characters.
+    #We want to get a format with dot as decimal separator and without thousand separator
+    def convertToPrice(priceStr)
+      punt=priceStr.index('.')
+      coma=priceStr.index(',')
+      #If the string contains dot and commas, we process it. If not, we replace comma by dot.
+      if (coma!=nil && punt!=nil)
+        #If dot is before comma, the format is x.xxx,xx so we delete the dot.
+        #If not, the format is x,xxx.xx so we delete the comma.
+        if (punt<coma)
+          priceStr=priceStr.gsub('.', '')
+        else
+          priceStr=priceStr.gsub(',', '')
+        end
+      end
+      #We replace comma by dot.
+      return priceStr.gsub(',', '.').to_f
     end
   end
 end

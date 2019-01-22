@@ -4,7 +4,7 @@ Gem::Specification.new do |s|
   s.version     = '3.1.0'
   s.summary     = "spree_import_products ... imports products. From a CSV file via Spree's Admin interface"
   #s.description = 'Add (optional) gem description here'
-  s.required_ruby_version = '>= 2.2.2'
+  s.required_ruby_version = '>= 2.2.1'
 
   s.author            = '2BeDigital'
   s.email             = '2bedigital@2bedigital.com'
