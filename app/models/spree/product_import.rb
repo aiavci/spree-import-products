@@ -447,6 +447,10 @@ module Spree
                                        })
 
       log("#{product_image.viewable_id} : #{product_image.viewable_type} : #{product_image.position}",:debug)
+      
+      unless Rails.application.config.use_paperclip || file.nil? || file.blank?
+        product_image.attachment.attach(io: file, filename: File.basename(file))
+      end
 
       product_or_variant.images << product_image if product_image.save
     end
