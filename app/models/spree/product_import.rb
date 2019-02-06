@@ -17,6 +17,7 @@ module Spree
       :url => "/spree/product_imports/data-files/:basename_:timestamp.:extension"
 
     validates_attachment_presence :data_file
+
     #Content type of csv vary in different browsers.
     validates_attachment :data_file, :presence => true, content_type: { content_type: ["text/csv", "text/plain", "text/comma-separated-values", "application/octet-stream", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"] }
 
@@ -104,7 +105,7 @@ module Spree
         log("import data start",:debug)
         @products_before_import = Spree::Product.all
         @skus_of_products_before_import = @products_before_import.map(&:sku)
-        csv_string=open(self.data_file.path,"r:#{encoding_csv}").read.encode('utf-8')
+        csv_string = open(self.data_file.path,"r:#{encoding_csv}").read.encode('utf-8')
         rows = CSV.parse(csv_string, :col_sep => separatorChar)
 
         if ProductImport.settings[:first_row_is_headings]
@@ -149,7 +150,7 @@ module Spree
           else
             #product doesn't exists
             if (@skus_of_products_before_import.include?(product_information[:sku]))
-              log(msg="SKU #{product_information[:sku]} exists, but slug #{row[variant_comparator_column]} not exists!! ",:error)
+              log(msg="SKU #{product_information[:sku]} exists, but slug #{row[variant_comparator_column]} does not exist! ",:error)
               raise ProductError, msg
             end
             next unless create_product(product_information)
@@ -509,8 +510,8 @@ module Spree
 
       taxon_hierarchy.split(/\s*\|\s*/).each do |hierarchy|
         hierarchy = hierarchy.split(/\s*>\s*/)
-        taxonomy = Spree::Taxonomy.where("name = ?", hierarchy.first.downcase).first
-        taxonomy = Taxonomy.create(:name => hierarchy.first.capitalize) if taxonomy.nil? && ProductImport.settings[:create_missing_taxonomies]
+        taxonomy = Spree::Taxonomy.find_by(name: hierarchy.first.capitalize)
+        taxonomy = Spree::Taxonomy.create(:name => hierarchy.first.capitalize) if taxonomy.nil? && ProductImport.settings[:create_missing_taxonomies]
         last_taxon = taxonomy.root
 
         hierarchy.shift
